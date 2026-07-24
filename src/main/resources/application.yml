@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: rainnov-lockstep-server
+  lifecycle:
+    # Leaves margin beyond the 30s room drain deadline for hard cleanup and
+    # ordered shutdown of the lower-phase Netty listener.
+    timeout-per-shutdown-phase: 45s
+
+server:
+  port: ${LOCKSTEP_CONTROL_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState,lockstepLiveness
+        readiness:
+          include: readinessState,lockstepReadiness
+      show-details: when_authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+lockstep:
+  node:
+    id: ${LOCKSTEP_NODE_ID}
+    shutdown-grace: 30s
+  pool:
+    target-size: 16
+    room-executor-threads: 4
+    tombstone-retention: 10m
+    health-check-interval: 10s
+    health-failure-threshold: 3
+  room:
+    max-players: 8
+    join-timeout: 60s
+    reconnect-grace: 30s
+    max-duration: 60m
+    graceful-termination-timeout: 5s
+  frame:
+    tick-rate: 20
+    input-delay-frames: 2
+    max-lead-frames: 4
+    history-seconds: 50
+    max-input-bytes: 1024
+  data-plane:
+    port: ${LOCKSTEP_DATA_PORT:9000}
+    path: /game
+    subprotocol: lockstep.protobuf.v1
+    advertised-uri: ${LOCKSTEP_ADVERTISED_URI:ws://localhost:9000/game}
+    protocol-version: 1
+    authentication-timeout: 5s
+    client-ping-interval: 5s
+    connection-idle-timeout: 15s
+    max-websocket-frame-bytes: 65536
+    write-buffer-low-water-mark: 32768
+    write-buffer-high-water-mark: 65536
+  security:
+    api-key: ${LOCKSTEP_API_KEY}
+    ticket-secret: ${LOCKSTEP_TICKET_SECRET}

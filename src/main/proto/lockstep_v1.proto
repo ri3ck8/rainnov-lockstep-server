@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package lockstep.v1;
+
+option java_package = "com.rainnov.lockstep.protocol";
+option java_multiple_files = true;
+option java_outer_classname = "LockstepV1Proto";
+
+// Envelope is the only top-level payload carried by a WebSocket binary frame.
+// protocol_version is currently 1.
+message Envelope {
+  uint32 protocol_version = 1;
+  // Optional application-level correlation id. Unsolicited server messages may
+  // leave this empty.
+  string request_id = 2;
+
+  oneof payload {
+    ClientHello client_hello = 10;
+    ServerHello server_hello = 11;
+    ClientInput client_input = 12;
+    ServerFrame server_frame = 13;
+    MatchEvent match_event = 14;
+    ProtocolError protocol_error = 15;
+    ClientPing client_ping = 16;
+    ServerPong server_pong = 17;
+  }
+}
+
+// The first application message sent on every new or reconnecting session.
+message ClientHello {
+  string room_id = 1;
+  string match_id = 2;
+  string player_id = 3;
+  string ticket = 4;
+  // Zero for an initial connection. On reconnect this is the last ServerFrame
+  // the client has fully applied.
+  uint32 last_applied_frame = 5;
+}
+
+message ServerHello {
+  string node_id = 1;
+  string room_id = 2;
+  string match_id = 3;
+  string player_id = 4;
+  MatchPhase match_phase = 5;
+  uint32 current_frame = 6;
+  uint32 tick_rate = 7;
+  uint32 input_delay_frames = 8;
+  uint32 max_lead_frames = 9;
+  // Inclusive replay range that follows this message. Both values are zero
+  // when no replay is required.
+  uint32 replay_from_frame = 10;
+  uint32 replay_to_frame = 11;
+  // Heartbeat/reconnect values are authoritative for this allocation.
+  uint32 client_ping_interval_ms = 12;
+  uint32 connection_idle_timeout_ms = 13;
+  uint32 reconnect_grace_ms = 14;
+}
+
+message ClientInput {
+  uint32 target_frame = 1;
+  // Monotonically increasing per-player sequence number. Sequence zero is
+  // reserved for a server-generated no-op.
+  uint32 sequence = 2;
+  // Engine-neutral, opaque game command bytes.
+  bytes payload = 3;
+}
+
+message PlayerFrameInput {
+  string player_id = 1;
+  bool no_op = 2;
+  // Zero when no_op is true.
+  uint32 sequence = 3;
+  // Empty when no_op is true.
+  bytes payload = 4;
+}
+
+message ServerFrame {
+  uint32 frame_id = 1;
+  // Entries are always in the player order established by room allocation.
+  repeated PlayerFrameInput inputs = 2;
+}
+
+message MatchEvent {
+  EventType type = 1;
+  // Empty for events that do not target a specific player.
+  string player_id = 2;
+  // Stable machine-readable reason supplied by the server or control plane.
+  string reason = 3;
+  uint32 frame_id = 4;
+}
+
+message ProtocolError {
+  ProtocolErrorCode code = 1;
+  string message = 2;
+  // When true, the server closes the connection after sending this message.
+  bool fatal = 3;
+}
+
+// The client sends this on a fixed schedule after authentication. It is not
+// suppressed by other outbound traffic.
+message ClientPing {
+  uint32 sequence = 1;
+}
+
+message ServerPong {
+  // Echoes the sequence from ClientPing.
+  uint32 sequence = 1;
+}
+
+enum MatchPhase {
+  MATCH_PHASE_UNSPECIFIED = 0;
+  MATCH_PHASE_WAITING_FOR_PLAYERS = 1;
+  MATCH_PHASE_RUNNING = 2;
+  MATCH_PHASE_FINISHED = 3;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_MATCH_STARTED = 1;
+  EVENT_TYPE_PLAYER_DISCONNECTED = 2;
+  EVENT_TYPE_PLAYER_RECONNECTED = 3;
+  EVENT_TYPE_CATCH_UP_COMPLETED = 4;
+  EVENT_TYPE_MATCH_TERMINATING = 5;
+  EVENT_TYPE_MATCH_ENDED = 6;
+}
+
+enum ProtocolErrorCode {
+  PROTOCOL_ERROR_CODE_UNSPECIFIED = 0;
+  PROTOCOL_ERROR_CODE_MALFORMED_MESSAGE = 1;
+  PROTOCOL_ERROR_CODE_UNSUPPORTED_PROTOCOL = 2;
+  PROTOCOL_ERROR_CODE_HELLO_TIMEOUT = 3;
+  PROTOCOL_ERROR_CODE_AUTHENTICATION_FAILED = 4;
+  PROTOCOL_ERROR_CODE_ALREADY_AUTHENTICATED = 5;
+  PROTOCOL_ERROR_CODE_ROOM_NOT_ACTIVE = 6;
+  PROTOCOL_ERROR_CODE_MATCH_MISMATCH = 7;
+  PROTOCOL_ERROR_CODE_PLAYER_NOT_RESERVED = 8;
+  PROTOCOL_ERROR_CODE_INVALID_TARGET_FRAME = 9;
+  PROTOCOL_ERROR_CODE_DUPLICATE_INPUT = 10;
+  PROTOCOL_ERROR_CODE_INPUT_TOO_LARGE = 11;
+  PROTOCOL_ERROR_CODE_REPLAY_HISTORY_EXPIRED = 12;
+}

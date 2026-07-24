@@ -1,0 +1,14 @@
+package com.rainnov.lockstep.room;
+
+public enum TerminationReason {
+    MATCH_COMPLETED,
+    JOIN_TIMEOUT,
+    RECONNECT_TIMEOUT,
+    MAX_DURATION,
+    HEALTH_CHECK_FAILED,
+    INTERNAL_ERROR,
+    REPLAY_HISTORY_EXPIRED,
+    ACTIVATION_FAILED,
+    NODE_DRAINING,
+    ADMINISTRATIVE
+}

@@ -1,0 +1,12 @@
+package com.rainnov.lockstep.room;
+
+public enum InputDisposition {
+    ACCEPTED,
+    DUPLICATE_IGNORED,
+    REJECTED_NOT_RUNNING,
+    REJECTED_SESSION,
+    REJECTED_TARGET_FRAME,
+    REJECTED_SEQUENCE,
+    REJECTED_CONFLICT,
+    REJECTED_TOO_LARGE
+}
