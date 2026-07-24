@@ -42,6 +42,35 @@ protobuf {
     }
 }
 
+sourceSets {
+    testClient {
+        java.srcDir 'src/testClient/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    testClientImplementation.extendsFrom implementation
+    testClientRuntimeOnly.extendsFrom runtimeOnly
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('runFrameSyncClient', JavaExec) {
+    group = 'verification'
+    description = '运行独立的多玩家帧同步测试客户端'
+    classpath = sourceSets.testClient.runtimeClasspath
+    mainClass = 'com.rainnov.lockstep.testclient.LockstepTestClient'
+    standardInput = System.in
+
+    if (project.hasProperty('testClientArgs')) {
+        args project.property('testClientArgs').toString().split(/\s+/)
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('testClientClasses')
 }

@@ -9,6 +9,10 @@
 - [控制面接口](docs/control-plane.md)
 - [数据面协议](docs/protocol.md)
 
+## 测试工具
+
+- [帧同步测试客户端](docs/test-client.md)
+
 ## 架构参考
 
 - [游戏战斗平台整体架构说明](docs/reference/游戏战斗平台整体架构说明.md)
