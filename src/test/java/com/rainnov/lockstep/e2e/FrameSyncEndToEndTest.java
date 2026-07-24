@@ -388,7 +388,7 @@ class FrameSyncEndToEndTest {
                 TerminationReason.ADMINISTRATIVE
             ).toCompletableFuture().get(2, TimeUnit.SECONDS);
         } catch (Exception ignored) {
-            // The normal test path has already terminated this one-shot room.
+            // 正常测试流程可能已经终止这个一次性房间。
         }
     }
 

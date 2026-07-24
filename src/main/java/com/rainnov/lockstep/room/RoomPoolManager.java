@@ -28,8 +28,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Coordinates a fixed-size pool of single-use {@link GameRoom} instances.
- * Pool indexes are mutated only by one coordinator EventExecutor.
+ * 协调由一次性 {@link GameRoom} 实例组成的固定大小房间池。
+ * 房间池索引仅由单个协调器 {@link EventExecutor} 修改。
  */
 public final class RoomPoolManager implements AutoCloseable {
 
@@ -473,7 +473,7 @@ public final class RoomPoolManager implements AutoCloseable {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         } catch (java.util.concurrent.ExecutionException | TimeoutException ignored) {
-            // Shutdown must remain bounded even if external executors are unresponsive.
+            // 即使外部执行器无响应，关闭过程也必须在有限时间内完成。
         } finally {
             closed = true;
             coordinator.shutdownGracefully(
@@ -545,7 +545,7 @@ public final class RoomPoolManager implements AutoCloseable {
                     try {
                         listener.run();
                     } catch (RuntimeException ignored) {
-                        // Metrics cannot prevent bounded replenishment handling.
+                        // 指标记录异常不得阻止限时补池处理。
                     }
                 }
                 if (acceptingAllocations) {
@@ -805,7 +805,7 @@ public final class RoomPoolManager implements AutoCloseable {
             try {
                 listener.accept(TerminationReason.HEALTH_CHECK_FAILED);
             } catch (RuntimeException ignored) {
-                // Node state observers cannot prevent bounded internal draining.
+                // 节点状态观察者异常不得阻止限时内部排空。
             }
         }
     }
@@ -919,7 +919,7 @@ public final class RoomPoolManager implements AutoCloseable {
             try {
                 listener.accept(snapshot);
             } catch (RuntimeException ignored) {
-                // Observers cannot prevent room disposal and replenishment.
+                // 观察者异常不得阻止房间销毁和补位。
             }
         }
         if (acceptingAllocations) {
@@ -993,7 +993,7 @@ public final class RoomPoolManager implements AutoCloseable {
                 case FAILED -> failed++;
                 case TERMINATING -> terminating++;
                 case TERMINATED -> {
-                    // Terminal rooms are removed on the next coordinator turn.
+                    // 已终止房间将在协调器下一轮处理时移除。
                 }
             }
             if (state != RoomState.FAILED && state != RoomState.TERMINATED

@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * A thread-safe room session backed by one Netty WebSocket channel.
+ * 由单个 Netty WebSocket 通道支持的线程安全房间会话。
  */
 public final class NettyDataPlaneSession implements DataPlaneSession {
 
@@ -95,8 +95,8 @@ public final class NettyDataPlaneSession implements DataPlaneSession {
     public void send(Envelope envelope) {
         Objects.requireNonNull(envelope, "envelope");
         synchronized (submissionMonitor) {
-            // The monitor makes acceptance and EventLoop submission atomic
-            // relative to close(), so accepted writes always precede CloseFrame.
+            // 相对于 close()，此监视器保证写入接收与提交至事件循环的操作具备原子性，
+            // 从而确保已接收的写入始终先于关闭帧执行。
             if (closing.get()) {
                 return;
             }

@@ -3,7 +3,7 @@ package com.rainnov.lockstep.security.ticket;
 import java.util.Objects;
 
 /**
- * Raised when a connection ticket cannot be authenticated or accepted.
+ * 连接票据无法通过认证或无法被接受时抛出的异常。
  */
 public final class TicketValidationException extends RuntimeException {
 

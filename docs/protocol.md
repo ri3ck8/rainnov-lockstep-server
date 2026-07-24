@@ -1,157 +1,106 @@
-# Lockstep Data Plane Protocol v1
+# 帧同步数据面协议 v1
 
-This document defines the engine-neutral wire contract between the lockstep
-server and clients built with Unreal Engine, Unity, Cocos, or any other runtime.
-The canonical message schema is
-[`src/main/proto/lockstep_v1.proto`](../src/main/proto/lockstep_v1.proto).
+本文档定义帧同步服务端与 Unreal Engine、Unity、Cocos 或其他运行时客户端之间与引擎无关的传输契约。标准消息模式定义见 [`src/main/proto/lockstep_v1.proto`](../src/main/proto/lockstep_v1.proto)。
 
-## Transport and framing
+## 传输与分帧
 
-- Transport is RFC 6455 WebSocket at `/game`.
-- The client must offer the `lockstep.protobuf.v1` WebSocket subprotocol. The
-  server must select that exact value or reject the upgrade.
-- Every WebSocket binary message contains exactly one serialized
-  `lockstep.v1.Envelope`. Text messages, fragmented payloads exceeding the
-  configured 64 KiB aggregate limit, and invalid Protobuf messages are rejected.
-- `Envelope.protocol_version` must be `1`. The sender may set `request_id` for
-  correlation. A direct response, including `ServerPong` or `ProtocolError`,
-  copies it when one was supplied; unsolicited frames and events may leave it
-  empty.
-- Tickets are carried only in `ClientHello`. They must not be put in the URI,
-  query string, subprotocol header, or logs.
+- 传输层采用 RFC 6455 WebSocket，路径为 `/game`。
+- 客户端必须提供 `lockstep.protobuf.v1` WebSocket 子协议。服务端必须选择该精确值，否则拒绝升级。
+- 每条 WebSocket 二进制消息仅包含一个序列化后的 `lockstep.v1.Envelope`。文本消息、聚合后超过所配置 64 KiB 上限的分片载荷，以及无效的 Protobuf 消息都会被拒绝。
+- `Envelope.protocol_version` 必须为 `1`。发送方可以设置 `request_id` 以关联请求和响应。直接响应（包括 `ServerPong` 或 `ProtocolError`）会在请求提供该字段时复制其值；服务端主动发送的帧和事件可以将其留空。
+- 票据只能放在 `ClientHello` 中，不能放入 URI、查询字符串、子协议请求头或日志。
 
-All frame identifiers and message sequence numbers are unsigned 32-bit values.
-Clients must use an unsigned representation or preserve the underlying 32 bits
-when their language has no native `uint32`. Game input is opaque `bytes`; the
-room server never decodes engine-specific objects.
+所有帧标识符和消息序列号均为 32 位无符号值。客户端应使用无符号表示；如果所用语言没有原生 `uint32`，则必须保留底层的 32 位数据。游戏输入是不透明的 `bytes`，房间服务端不会解码引擎专属对象。
 
-## Connection and authentication
+## 连接与认证
 
-After the WebSocket upgrade, the connection is unauthenticated:
+WebSocket 升级完成后，连接处于未认证状态：
 
-1. The client sends one `ClientHello` within 5 seconds. No other application
-   message is valid before it.
-2. The server validates protocol version, room, match, reserved player, ticket
-   signature, ticket expiry, and the room's active state.
-3. The server binds the connection to that exact player and returns
-   `ServerHello`.
-4. An initial connection sends `last_applied_frame = 0`. A reconnect sends the
-   last `ServerFrame.frame_id` that the client completely applied.
+1. 客户端必须在 5 秒内发送一条 `ClientHello`，此前发送的其他应用层消息均无效。
+2. 服务端校验协议版本、房间、对局、预留玩家、票据签名、票据有效期以及房间的活动状态。
+3. 服务端将连接绑定到该玩家并返回 `ServerHello`。
+4. 首次连接发送 `last_applied_frame = 0`；重连时发送客户端已完整应用的最后一个 `ServerFrame.frame_id`。
 
-Authentication failure is fatal. A second `ClientHello` on an authenticated
-connection is also fatal; reconnecting requires a new WebSocket. If the same
-player authenticates on a new connection, the new session atomically replaces
-the old one. Closing the replaced connection must not mark the new session as
-disconnected.
+认证失败属于致命错误。已认证连接再次发送 `ClientHello` 同样属于致命错误；重连必须创建新的 WebSocket。如果同一玩家在新连接上认证成功，新会话会原子替换旧会话。关闭被替换的连接时，不得将新会话标记为断线。
 
-`ServerHello` reports the current match phase and frame parameters. Its
-`replay_from_frame` and `replay_to_frame` form an inclusive range. Both are zero
-when no replay follows. It also carries the authoritative
-`client_ping_interval_ms`, `connection_idle_timeout_ms`, and
-`reconnect_grace_ms` values so clients do not hard-code deployment settings.
+`ServerHello` 会报告当前对局阶段和帧参数。`replay_from_frame` 与 `replay_to_frame` 构成闭区间；无需回放时二者均为零。它还会携带本次分配的权威参数 `client_ping_interval_ms`、`connection_idle_timeout_ms` 和 `reconnect_grace_ms`，客户端不得将部署参数写死。
 
 ```mermaid
 stateDiagram-v2
+    state "WebSocket 握手" as WebSocketHandshake
+    state "等待 ClientHello" as AwaitingHello
+    state "已认证" as Authenticated
+    state "已关闭" as Closed
+    state "重连中" as Reconnecting
+    state "对局已终止" as MatchTerminated
     [*] --> WebSocketHandshake
-    WebSocketHandshake --> AwaitingHello: subprotocol selected
-    AwaitingHello --> Authenticated: valid ClientHello
-    AwaitingHello --> Closed: invalid or later than 5s
+    WebSocketHandshake --> AwaitingHello: 已选择子协议
+    AwaitingHello --> Authenticated: ClientHello 有效
+    AwaitingHello --> Closed: 无效或超过 5 秒
     Authenticated --> Authenticated: ClientInput / ClientPing
-    Authenticated --> Reconnecting: close / idle / slow consumer
-    Reconnecting --> Authenticated: valid replacement ClientHello
-    Reconnecting --> MatchTerminated: 30s grace expired
-    Authenticated --> MatchTerminated: trusted control-plane termination
+    Authenticated --> Reconnecting: 关闭 / 空闲超时 / 慢消费者
+    Reconnecting --> Authenticated: 替代 ClientHello 有效
+    Reconnecting --> MatchTerminated: 30 秒宽限期已过
+    Authenticated --> MatchTerminated: 可信控制面终止
     MatchTerminated --> Closed
 ```
 
-## Client heartbeat and disconnect detection
+## 客户端心跳与断线检测
 
-Heartbeat is initiated only by the authenticated client:
+心跳仅由已认证客户端发起：
 
-- The client sends `ClientPing` every 5 seconds on a fixed schedule, regardless
-  of whether it sent inputs or other messages during that interval.
-- The server immediately replies with `ServerPong`, echoing both
-  `ClientPing.sequence` and the envelope `request_id` when present.
-- The server does not initiate either an application-level Ping or a WebSocket
-  Ping as the protocol heartbeat.
-- Every successfully decoded, client-to-server message from the authenticated
-  current connection refreshes its last-inbound time. A well-formed input that
-  is later rejected for its target frame or payload still proves connection
-  activity. Malformed, unauthenticated, and wrong-direction messages do not
-  refresh it.
-- If 15 seconds elapse without a valid authenticated message, the server closes
-  that connection with `HEARTBEAT_TIMEOUT` semantics and marks the player
-  `RECONNECTING`.
+- 客户端固定每 5 秒发送一次 `ClientPing`，无论该周期内是否发送过输入或其他消息。
+- 服务端立即返回 `ServerPong`，原样带回 `ClientPing.sequence`；如果信封中存在 `request_id`，也会原样带回。
+- 服务端不会主动发送应用层 Ping 或 WebSocket Ping 作为协议心跳。
+- 当前已认证连接上每条成功解码的客户端到服务端消息都会刷新其最后入站时间。格式正确但因目标帧或载荷问题被拒绝的输入仍可证明连接处于活动状态；格式错误、未认证或方向错误的消息不会刷新该时间。
+- 如果连续 15 秒未收到有效的已认证消息，服务端会以 `HEARTBEAT_TIMEOUT` 语义关闭连接，并将玩家标记为 `RECONNECTING`。
 
-Heartbeat and timeout measurement use a monotonic clock. The 15-second
-connection timeout is distinct from the reconnect grace period.
+心跳与超时测量使用单调时钟。15 秒连接超时与重连宽限期相互独立。
 
-## Reconnect and replay
+## 重连与回放
 
-After a connection is lost, the match continues and the server emits no-op input
-for that player. The player has 30 seconds from disconnect detection to
-authenticate a replacement connection.
+连接断开后，对局继续进行，服务端会为该玩家填充空操作输入。从检测到断线开始，玩家有 30 秒时间认证替代连接。
 
-For a valid reconnect:
+有效重连的处理流程如下：
 
-1. The room takes a snapshot of its current frame on its event loop.
-2. If the client is behind, `ServerHello` advertises
-   `[last_applied_frame + 1, snapshot_frame]`.
-3. The server sends every retained `ServerFrame` in that range in ascending
-   order without interleaving newer live frames.
-4. It emits `EVENT_TYPE_CATCH_UP_COMPLETED`, then switches the session to the
-   live stream. Live frames produced during replay are queued in order.
+1. 房间在其事件循环上获取当前帧快照。
+2. 如果客户端落后，`ServerHello` 会声明 `[last_applied_frame + 1, snapshot_frame]`。
+3. 服务端按升序发送该范围内所有保留的 `ServerFrame`，期间不会交错发送更新的实时帧。
+4. 服务端发送 `EVENT_TYPE_CATCH_UP_COMPLETED`，然后将会话切换至实时流。回放期间生成的实时帧会按顺序排队。
 
-The default history is 1,000 frames (50 seconds at 20 Hz). If the requested
-first frame has already been evicted, the server sends the fatal
-`PROTOCOL_ERROR_CODE_REPLAY_HISTORY_EXPIRED` error and terminates the match to
-avoid deterministic state divergence. A reconnect grace timeout also terminates
-the match.
+默认历史记录为 1,000 帧（20 Hz 下为 50 秒）。如果请求的首帧已被淘汰，服务端会发送致命错误 `PROTOCOL_ERROR_CODE_REPLAY_HISTORY_EXPIRED` 并终止对局，以避免确定性状态分歧。重连宽限期超时也会终止对局。
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Transport
-    participant Room
+    participant Client as 客户端
+    participant Transport as 传输层
+    participant Room as 房间
     Client->>Transport: ClientHello(lastAppliedFrame)
-    Transport->>Room: authenticate and atomically attach
+    Transport->>Room: 认证并原子挂接
     Room-->>Client: ServerHello(replayFrom, replayTo)
-    loop retained frames in ascending order
+    loop 按升序回放保留帧
         Room-->>Client: ServerFrame
     end
     Room-->>Client: CATCH_UP_COMPLETED
-    Room-->>Client: live ServerFrame stream
+    Room-->>Client: 实时 ServerFrame 流
 ```
 
-## Frame and input rules
+## 帧与输入规则
 
-- The match starts at frame 1 when all reserved players are connected.
-- The default rate is 20 frames per second. `ServerHello` is authoritative for
-  `tick_rate`, `input_delay_frames`, and `max_lead_frames`.
-- With the defaults, a `ClientInput.target_frame` is accepted only in the
-  inclusive range `current_frame + 1` through `current_frame + 4`; clients
-  normally target `current_frame + 2`.
-- `ClientInput.sequence` is monotonically increasing per player and must be
-  nonzero. `payload` is at most 1 KiB.
-- The first valid input from a player for a target frame wins. An exact retry
-  with the same sequence and bytes is idempotently ignored. Any different input
-  for that player and frame is rejected as
-  `PROTOCOL_ERROR_CODE_DUPLICATE_INPUT`.
-- A late, too-far-ahead, or otherwise invalid target is rejected as
-  `PROTOCOL_ERROR_CODE_INVALID_TARGET_FRAME`. A rejected input never changes a
-  previously accepted or broadcast frame.
-- Each `ServerFrame.inputs` list follows the immutable player order from the
-  room allocation. If a player has no accepted input, the entry has
-  `no_op = true`, `sequence = 0`, and an empty payload.
-- Once broadcast, a `ServerFrame` is immutable. The server does not execute the
-  payload, simulate the game, or decide the winner.
+- 所有预留玩家连接后，对局从第 1 帧开始。
+- 默认速率为每秒 20 帧。`tick_rate`、`input_delay_frames` 和 `max_lead_frames` 均以 `ServerHello` 返回的值为准。
+- 使用默认值时，仅接受目标位于闭区间 `current_frame + 1` 到 `current_frame + 4` 内的 `ClientInput.target_frame`；客户端通常以 `current_frame + 2` 为目标。
+- 每位玩家的 `ClientInput.sequence` 必须单调递增且不能为零。`payload` 最大为 1 KiB。
+- 某位玩家针对目标帧发送的第一条有效输入生效。序列号和字节完全相同的重试会被幂等忽略；该玩家针对同一帧发送的任何不同输入都会以 `PROTOCOL_ERROR_CODE_DUPLICATE_INPUT` 拒绝。
+- 迟到、过度超前或其他无效目标都会以 `PROTOCOL_ERROR_CODE_INVALID_TARGET_FRAME` 拒绝。被拒绝的输入不会更改此前已接受或已广播的帧。
+- 每个 `ServerFrame.inputs` 列表都遵循房间分配时确定且不可变的玩家顺序。如果某位玩家没有已接受的输入，对应条目为 `no_op = true`、`sequence = 0` 且载荷为空。
+- `ServerFrame` 一经广播便不可更改。服务端不会执行载荷、模拟游戏或判定胜负。
 
-The server schedules ticks using a monotonic clock. A delayed event loop neither
-bursts several catch-up ticks nor skips frame identifiers.
+服务端使用单调时钟调度 tick。事件循环发生延迟时，既不会突发执行多个追赶 tick，也不会跳过帧标识符。
 
-## Events and errors
+## 事件与错误
 
-`MatchEvent` communicates lifecycle changes:
+`MatchEvent` 用于传达生命周期变化：
 
 - `EVENT_TYPE_MATCH_STARTED`
 - `EVENT_TYPE_PLAYER_DISCONNECTED`
@@ -160,51 +109,28 @@ bursts several catch-up ticks nor skips frame identifiers.
 - `EVENT_TYPE_MATCH_TERMINATING`
 - `EVENT_TYPE_MATCH_ENDED`
 
-`player_id` is populated only for player-specific events. `reason` is a stable
-machine-readable token. Clients must not use the data plane to end a match;
-normal termination is initiated by the trusted REST control plane.
+`player_id` 仅在玩家专属事件中填写。`reason` 是稳定、机器可读的标记。客户端不得通过数据面结束对局；正常终止由可信的 REST 控制面发起。
 
-`ProtocolError.fatal = false` rejects only the offending message. When it is
-`true`, the server sends the error and closes the WebSocket. Authentication,
-unsupported protocol, expired replay history, malformed envelopes that cannot
-be safely processed, and invalid message direction are fatal. Frame-window,
-payload-size and duplicate-input errors are non-fatal.
+`ProtocolError.fatal = false` 只拒绝触发错误的消息。该值为 `true` 时，服务端会发送错误并关闭 WebSocket。认证失败、不支持的协议、回放历史过期、无法安全处理的畸形 `Envelope` 以及无效消息方向均属于致命错误。帧窗口、载荷大小和重复输入错误属于非致命错误。
 
-## Compatibility rules
+## 兼容规则
 
-- The WebSocket subprotocol and `Envelope.protocol_version` jointly select the
-  protocol major version. A breaking wire or behavioral change requires v2 and
-  a new subprotocol such as `lockstep.protobuf.v2`.
-- Existing field numbers, enum numbers, and their meanings are permanent. They
-  must never be reused, even after a field or value is removed; removed numbers
-  and names must be marked `reserved` in the schema.
-- Backward-compatible v1 evolution may add optional scalar fields, messages,
-  enum values, or new `oneof` alternatives using new numbers.
-- Receivers must tolerate unknown fields and unknown enum numeric values.
-  Unknown `Envelope.payload` alternatives cannot be acted upon and should
-  produce an unsupported-message error without assuming their contents.
-- Senders must not rely on proto3 scalar presence unless a field is explicitly
-  declared `optional`. Zero values have the meanings documented in the schema.
-- Implementations must generate code from the canonical `.proto` file. They
-  must not duplicate the wire layout with engine-specific serializers.
+- WebSocket 子协议与 `Envelope.protocol_version` 共同选择协议主版本。传输格式或行为发生破坏性变更时必须升级到 v2，并使用 `lockstep.protobuf.v2` 等新子协议。
+- 现有字段编号、枚举编号及其含义永久有效，即使字段或值已移除也不得复用；已移除的编号和名称必须在模式定义中标记为 `reserved`。
+- v1 的向后兼容演进可以使用新编号增加可选标量字段、消息、枚举值或新的 `oneof` 选项。
+- 接收方必须容忍未知字段和未知枚举数值。无法处理未知的 `Envelope.payload` 选项时，应返回不支持消息错误，不得臆测其内容。
+- 除非字段显式声明为 `optional`，否则发送方不得依赖 proto3 标量字段的存在性。零值的含义以模式定义中的说明为准。
+- 各实现必须根据标准 `.proto` 文件生成代码，不得使用引擎专属序列化器重复定义传输格式。
 
-## Compatibility test vectors
+## 兼容性测试向量
 
-Canonical Protobuf binary fixtures are stored in
-[`src/test/resources/protocol-v1`](../src/test/resources/protocol-v1). The set
-contains `ClientHello`, `ClientPing`, `ServerPong`, and a `ServerFrame` with
-both a real input and a no-op. `manifest.json` records the decoded fields, exact
-wire hex, and SHA-256 digest for each file.
+标准 Protobuf 二进制样例存放在 [`src/test/resources/protocol-v1`](../src/test/resources/protocol-v1)。其中包含 `ClientHello`、`ClientPing`、`ServerPong`，以及同时带有真实输入和空操作的 `ServerFrame`。`manifest.json` 记录每个文件解码后的字段、精确的传输编码十六进制数据和 SHA-256 摘要。
 
-An engine implementation is compatible when it can parse every `.bin` file into
-the manifest values and serialize those parsed messages back to exactly the
-same bytes. The Java compatibility test enforces both directions. Regenerate
-the fixtures intentionally from the repository root with:
+引擎实现能够将每个 `.bin` 文件解析为清单中的值，并将解析后的消息重新序列化为完全相同的字节时，即视为兼容。Java 兼容性测试会验证两个方向。如需重新生成样例，请在仓库根目录中明确执行：
 
 ```powershell
 $env:GENERATE_PROTOCOL_VECTORS = 'true'
 .\gradlew.bat test --tests 'com.rainnov.lockstep.protocol.ProtocolV1TestVectorGeneratorTest'
 ```
 
-Generation is disabled during ordinary test runs so a schema change cannot
-silently rewrite the compatibility baseline.
+普通测试默认禁用生成操作，避免模式定义变更在无提示的情况下重写兼容性基线。

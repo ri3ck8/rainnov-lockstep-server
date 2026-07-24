@@ -150,7 +150,7 @@ BOS 管理的不只是一个 Pod，而是从匹配完成到结果落地的完整
 
 Agones 的 `GameServerAllocation` 会从满足条件的集合中原子选择实例，并在成功后将其转为 `Allocated`，因此这部分能力不应在 BOS 中重复实现。参见 [Agones GameServerAllocation 规范](https://agones.dev/site/docs/reference/gameserverallocation/)。
 
-### 4.5 Agones Allocator / GameServerAllocation
+### 4.5 Agones 分配器 / GameServerAllocation
 
 负责：
 
@@ -160,9 +160,9 @@ Agones 的 `GameServerAllocation` 会从满足条件的集合中原子选择实�
 - 返回 GameServer 名称、地址、端口和节点信息。
 - 在 Allocation 时向 GameServer 附加受控标签或 Annotation。
 
-若 BOS 位于集群外或需要多集群接入，优先使用提供 gRPC/REST 与 mTLS 的 `agones-allocator`；若 BOS 位于同集群且组织接受 Kubernetes RBAC，也可直接使用 `GameServerAllocation` CRD。参见 [Agones Allocator Service](https://agones.dev/site/docs/advanced/allocator-service/)。
+若 BOS 位于集群外或需要多集群接入，优先使用提供 gRPC/REST 与 mTLS 的 `agones-allocator`；若 BOS 位于同集群且组织接受 Kubernetes RBAC，也可直接使用 `GameServerAllocation` CRD。参见 [Agones 分配器服务](https://agones.dev/site/docs/advanced/allocator-service/)。
 
-### 4.6 GameServer Fleet
+### 4.6 GameServer Fleet（实例组）
 
 Fleet 是一组可供分配的预热 GameServer。它维护期望实例数，并由 Agones 控制器使实际状态趋近期望状态。参见 [Agones Fleet 规范](https://agones.dev/site/docs/reference/fleet/)。
 
@@ -182,7 +182,7 @@ game-b-jp-v2-1-0-standard
 
 默认不按每个游戏模式拆分 Fleet。只有当不同模式使用不同镜像、启动参数、资源规格或网络协议时，再单独拆分。
 
-### 4.7 FleetAutoscaler
+### 4.7 FleetAutoscaler（Fleet 自动伸缩器）
 
 FleetAutoscaler 根据需求自动调整 Fleet 副本数。
 
@@ -203,7 +203,7 @@ FleetAutoscaler 根据需求自动调整 Fleet 副本数。
 
 FleetAutoscaler 的 Ready Buffer 可按绝对数量或百分比维持，Webhook 可将外部业务信号纳入伸缩决策。参见 [Agones FleetAutoscaler 规范](https://agones.dev/site/docs/reference/fleetautoscaler/)。
 
-### 4.8 Kubernetes
+### 4.8 Kubernetes 集群
 
 负责：
 
@@ -312,7 +312,7 @@ GameServer Pod → 注册 Nacos
 5. Pod 终止。
 6. Fleet/FleetAutoscaler 补充新的 Ready 实例。
 
-Agones SDK 支持将已分配 GameServer 再次转回 Ready，但本方案基于隔离性、状态清理和可预测性，明确选择“单局结束即销毁”。Agones 对 `Shutdown()` 的说明见 [Game Server Client SDKs](https://agones.dev/site/docs/guides/client-sdks/)。
+Agones SDK 支持将已分配 GameServer 再次转回 Ready，但本方案基于隔离性、状态清理和可预测性，明确选择“单局结束即销毁”。Agones 对 `Shutdown()` 的说明见 [Agones Game Server 客户端 SDK](https://agones.dev/site/docs/guides/client-sdks/)。
 
 ### 6.2 语言不限定
 
@@ -353,7 +353,7 @@ BattleRuntimeAdapter
 6. 初始化完成后调用 `Ready()`。
 7. GameServer 进入 `Ready`，等待分配。
 
-Health 调用间隔必须满足 GameServer 健康策略，否则实例可能进入 `Unhealthy`；参见 [Agones GameServer Health Checking](https://agones.dev/site/docs/guides/health-checking/)。
+Health 调用间隔必须满足 GameServer 健康策略，否则实例可能进入 `Unhealthy`；参见 [Agones GameServer 健康检查](https://agones.dev/site/docs/guides/health-checking/)。
 
 ### 7.2 玩家匹配
 
@@ -471,7 +471,7 @@ Agones 状态描述基础设施生命周期，BOS 状态描述业务会话生命
 
 ## 9. 容量与扩缩容
 
-### 9.1 Ready Buffer
+### 9.1 Ready Buffer（就绪缓冲池）
 
 必须预热一定数量的 Ready GameServer，避免匹配完成后等待容器冷启动。
 
@@ -509,7 +509,7 @@ Cluster Autoscaler / 云节点池：解决计算节点数量
 - 已进入 `Allocated` 的对局原则上等待自然结束，不因普通缩容而强制迁移。
 - 新版本发布使用独立 Fleet，先预热，再逐步增加 BOS 分配权重。
 
-Agones 的调度与自动伸缩建议见 [Scheduling and Autoscaling](https://agones.dev/site/docs/advanced/scheduling-and-autoscaling/)。
+Agones 的调度与自动伸缩建议见 [Agones 调度与自动伸缩](https://agones.dev/site/docs/advanced/scheduling-and-autoscaling/)。
 
 ## 10. 战斗平台管理后台
 
@@ -556,7 +556,7 @@ Agones 提供 Kubernetes CRD/API、指标和 Grafana 仪表盘，但它不理解
 - 版本发布优先采用 GitOps，后台负责创建发布单、配置灰度比例和展示状态。
 - 不允许后台任意删除 `Allocated` GameServer；高风险操作必须二次确认并保留审计记录。
 
-Agones 官方提供可接入 Prometheus 的指标及 Grafana 仪表盘，可复用为基础设施监控，但业务对局管理仍需自研。参见 [Agones Metrics](https://agones.dev/site/docs/guides/metrics/)。
+Agones 官方提供可接入 Prometheus 的指标及 Grafana 仪表盘，可复用为基础设施监控，但业务对局管理仍需自研。参见 [Agones 指标](https://agones.dev/site/docs/guides/metrics/)。
 
 ## 11. 监控与可观测性
 
@@ -765,12 +765,12 @@ Fleet 预热的 Ready GameServer
 ## 18. 参考资料
 
 - [Agones GameServerAllocation 规范](https://agones.dev/site/docs/reference/gameserverallocation/)
-- [Agones Allocator Service](https://agones.dev/site/docs/advanced/allocator-service/)
+- [Agones 分配器服务](https://agones.dev/site/docs/advanced/allocator-service/)
 - [Agones Fleet 规范](https://agones.dev/site/docs/reference/fleet/)
 - [Agones FleetAutoscaler 规范](https://agones.dev/site/docs/reference/fleetautoscaler/)
-- [Agones Game Server Client SDKs](https://agones.dev/site/docs/guides/client-sdks/)
-- [Agones GameServer Health Checking](https://agones.dev/site/docs/guides/health-checking/)
-- [Agones Metrics 与 Grafana 仪表盘](https://agones.dev/site/docs/guides/metrics/)
-- [Agones Scheduling and Autoscaling](https://agones.dev/site/docs/advanced/scheduling-and-autoscaling/)
+- [Agones Game Server 客户端 SDK](https://agones.dev/site/docs/guides/client-sdks/)
+- [Agones GameServer 健康检查](https://agones.dev/site/docs/guides/health-checking/)
+- [Agones 指标与 Grafana 仪表盘](https://agones.dev/site/docs/guides/metrics/)
+- [Agones 调度与自动伸缩](https://agones.dev/site/docs/advanced/scheduling-and-autoscaling/)
 - [Nacos 服务发现概述](https://nacos.io/en/docs/latest/manual/user/naming/overview/)
 - [Kubernetes Pod 资源管理](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)

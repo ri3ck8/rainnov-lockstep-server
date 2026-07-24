@@ -1,7 +1,7 @@
 package com.rainnov.lockstep.transport;
 
 /**
- * Transport event sink kept separate from protocol/room behavior.
+ * 与协议及房间行为相互独立的传输层事件接收器。
  */
 public interface DataPlaneTelemetry {
 

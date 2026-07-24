@@ -7,10 +7,10 @@ import com.rainnov.lockstep.room.InputResult;
 import java.util.concurrent.CompletionStage;
 
 /**
- * The transport-facing boundary of the room domain.
+ * 房间领域面向传输层的边界。
  *
- * <p>Every implementation must preserve the room's event-loop confinement;
- * transport handlers never mutate room state directly.</p>
+ * <p>所有实现都必须保持房间仅由其事件循环访问；
+ * 传输层处理器不得直接修改房间状态。</p>
  */
 interface RoomCommandGateway {
 

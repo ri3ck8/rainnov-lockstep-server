@@ -29,18 +29,17 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Deterministic, URL-safe HMAC-SHA256 ticket implementation.
+ * 确定性且适用于 URL 的 HMAC-SHA256 票据实现。
  *
- * <p>The token consists of two unpadded Base64URL components:
- * {@code payload.signature}. The signature authenticates the raw binary payload.
- * The payload uses a fixed, versioned wire format and is parsed without accepting
- * missing, duplicate or trailing fields.</p>
+ * <p>令牌由两个不带填充的 Base64URL 部分组成：
+ * {@code payload.signature}。签名用于认证原始二进制载荷。
+ * 载荷采用固定且带版本号的线路格式；解析时不接受字段缺失、字段重复或尾随字段。</p>
  */
 public final class HmacTicketService implements TicketService {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int HMAC_LENGTH = 32;
-    private static final int MAGIC = 0x4c544b54; // LTKT
+    private static final int MAGIC = 0x4c544b54; // ASCII 标识：LTKT
     private static final int WIRE_FORMAT_VERSION = 1;
     private static final int MAX_TOKEN_LENGTH = 16_384;
     private static final int MAX_PAYLOAD_LENGTH = 8_192;

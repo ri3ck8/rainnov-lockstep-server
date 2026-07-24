@@ -2,8 +2,8 @@ spring:
   application:
     name: rainnov-lockstep-server
   lifecycle:
-    # Leaves margin beyond the 30s room drain deadline for hard cleanup and
-    # ordered shutdown of the lower-phase Netty listener.
+    # 在 30 秒房间排空期限之外预留时间，用于强制清理并按顺序关闭
+    # 生命周期阶段较低的 Netty 监听器。
     timeout-per-shutdown-phase: 45s
 
 server:

@@ -84,7 +84,7 @@ class ControlPlaneIntegrationTest {
                     TerminationReason.ADMINISTRATIVE
                 ).toCompletableFuture().get(2, TimeUnit.SECONDS);
             } catch (Exception ignored) {
-                // A test may already have terminated the one-shot room.
+                // 测试可能已经终止这个一次性房间。
             }
         }
         allocatedRooms.clear();

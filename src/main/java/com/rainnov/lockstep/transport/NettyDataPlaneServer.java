@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Dedicated Netty server for the WebSocket game data plane.
+ * 专用于 WebSocket 游戏数据面的 Netty 服务器。
  */
 @Component
 public final class NettyDataPlaneServer implements SmartLifecycle {
@@ -192,7 +192,7 @@ public final class NettyDataPlaneServer implements SmartLifecycle {
     @Override
     public void stop() {
         stop(() -> {
-            // The callback overload is used by Spring for ordered shutdown.
+            // Spring 使用带回调的重载方法执行有序关闭。
         });
     }
 
@@ -263,7 +263,7 @@ public final class NettyDataPlaneServer implements SmartLifecycle {
     }
 
     /**
-     * Starts before the room-pool lifecycle (phase 100) and stops after it.
+     * 在房间池生命周期组件（阶段 100）之前启动，并在其之后停止。
      */
     @Override
     public int getPhase() {

@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Immutable claims carried by a player connection ticket.
+ * 玩家连接票据中携带的不可变声明。
  */
 public record TicketClaims(
         int version,

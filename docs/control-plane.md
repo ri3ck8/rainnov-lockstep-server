@@ -1,4 +1,4 @@
-# Control Plane API v1
+# 控制面接口 v1
 
 所有 `/api/v1/**` 和 `/internal/v1/**` 请求都要求：
 
@@ -6,8 +6,7 @@
 X-API-Key: <configured key>
 ```
 
-服务端接受可选的 `X-Request-Id`（最长 128 字符），并始终在响应头回传最终
-request id。错误体统一为：
+服务端接受可选的 `X-Request-Id`（最长 128 字符），并始终在响应头回传最终请求 ID。错误体统一为：
 
 ```json
 {
@@ -36,9 +35,7 @@ Content-Type: application/json
 }
 ```
 
-玩家顺序是该局永久的帧聚合顺序。首次成功返回 `201 Created`；相同幂等键与
-相同请求重放返回 `200 OK` 和同一 allocation、room 及票据。相同键绑定不同
-请求返回 `409 Conflict`。
+玩家顺序是该局永久的帧聚合顺序。首次成功返回 `201 Created`；相同幂等键与相同请求重放返回 `200 OK` 和同一分配记录、房间及票据。相同键绑定不同请求返回 `409 Conflict`。
 
 响应示例：
 
@@ -76,11 +73,9 @@ Content-Type: application/json
 }
 ```
 
-没有 `READY` 房间或节点正在排空时立即返回 `503 Service Unavailable` 和
-`Retry-After`；节点内部不排队。
+没有 `READY` 房间或节点正在排空时立即返回 `503 Service Unavailable` 和 `Retry-After`；节点内部不排队。
 
-示例中的 `wss://` 是客户端看到的 TLS 终止层地址。节点原生 Netty 端口使用
-`ws://`；负载均衡器或自研 Proxy 负责 TLS，并将连接转发到节点。
+示例中的 `wss://` 是客户端看到的 TLS 终止层地址。节点原生 Netty 端口使用 `ws://`；负载均衡器或自研 Proxy 负责 TLS，并将连接转发到节点。
 
 ## 查询房间
 
@@ -88,8 +83,7 @@ Content-Type: application/json
 GET /api/v1/rooms/{roomId}
 ```
 
-返回房间/对局状态、玩家连接状态、当前 frame、生命周期时间及终止原因。
-响应不包含加入票据。终止后的不可变快照保留 10 分钟。
+返回房间/对局状态、玩家连接状态、当前帧、生命周期时间及终止原因。响应不包含加入票据。终止后的不可变快照保留 10 分钟。
 
 ## 终止对局
 
@@ -108,8 +102,7 @@ Content-Type: application/json
 }
 ```
 
-管理强制结束可使用 `mode=FORCE`、`reason=ADMINISTRATIVE`。重复提交会返回同一
-终态快照；`matchId` 与房间不匹配时返回 `409 Conflict`。
+管理强制结束可使用 `mode=FORCE`、`reason=ADMINISTRATIVE`。重复提交会返回同一终态快照；`matchId` 与房间不匹配时返回 `409 Conflict`。
 
 ## 节点容量
 
@@ -117,9 +110,6 @@ Content-Type: application/json
 GET /internal/v1/node/capacity
 ```
 
-返回稳定的 `nodeId`、`nodeStatus`、数据面端点、目标容量，以及
-`initializingRooms`、`readyRooms`、`activatingRooms`、`activeRooms`、
-`failedRooms`、`terminatingRooms`、`healthyRooms` 和 `totalLiveRooms`。
+返回稳定的 `nodeId`、`nodeStatus`、数据面端点、目标容量，以及 `initializingRooms`、`readyRooms`、`activatingRooms`、`activeRooms`、`failedRooms`、`terminatingRooms`、`healthyRooms` 和 `totalLiveRooms`。
 
-未来 Proxy 可以短时缓存该快照，但它不是分配承诺；实际申请返回 503 时必须
-改选其他节点。节点只保证本节点内的 `matchId` 和幂等键唯一。
+未来 Proxy 可以短时缓存该快照，但它不是分配承诺；实际申请返回 503 时必须改选其他节点。节点只保证本节点内的 `matchId` 和幂等键唯一。

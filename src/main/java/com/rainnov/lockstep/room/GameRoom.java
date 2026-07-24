@@ -28,8 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
 /**
- * A single-use logical game room. Every mutation is executed by the assigned
- * {@link EventExecutor}; callers from REST or Netty handlers only submit commands.
+ * 一次性逻辑游戏房间。所有状态变更均由指定的 {@link EventExecutor} 执行；
+ * REST 调用方或 Netty 处理器只负责提交命令。
  */
 public final class GameRoom {
 
@@ -719,7 +719,7 @@ public final class GameRoom {
             try {
                 terminalListener.onTerminated(this, publishedSnapshot);
             } catch (RuntimeException ignored) {
-                // Observers cannot prevent the room from reaching its terminal state.
+                // 观察者异常不得阻止房间进入终止状态。
             }
         }
         return publishedSnapshot;
@@ -811,7 +811,7 @@ public final class GameRoom {
         try {
             session.close(statusCode, reason);
         } catch (RuntimeException ignored) {
-            // Closing is best effort; room state must still advance.
+            // 关闭操作尽力而为，但房间状态仍必须继续推进。
         }
     }
 

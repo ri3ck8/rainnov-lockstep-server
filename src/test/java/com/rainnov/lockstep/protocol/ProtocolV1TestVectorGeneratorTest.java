@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 /**
- * Reproducibly generates the cross-engine protocol fixtures.
+ * 以可复现方式生成跨引擎协议测试夹具。
  *
- * <p>Run with {@code GENERATE_PROTOCOL_VECTORS=true ./gradlew test --tests
- * '*.ProtocolV1TestVectorGeneratorTest'} from the repository root. The regular test suite skips
- * this generator so tests never rewrite tracked fixtures accidentally.
+ * <p>在仓库根目录运行 {@code GENERATE_PROTOCOL_VECTORS=true ./gradlew test --tests
+ * '*.ProtocolV1TestVectorGeneratorTest'}。常规测试套件会跳过此生成器，
+ * 避免测试意外改写已纳入版本控制的夹具。
  */
 @EnabledIfEnvironmentVariable(named = "GENERATE_PROTOCOL_VECTORS", matches = "true")
 class ProtocolV1TestVectorGeneratorTest {

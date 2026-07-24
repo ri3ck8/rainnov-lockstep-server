@@ -1,24 +1,24 @@
 package com.rainnov.lockstep.security.ticket;
 
 /**
- * Issues and validates signed player connection tickets.
+ * 签发并验证带签名的玩家连接票据。
  */
 public interface TicketService {
 
     /**
-     * Issues a deterministic token for the supplied claims.
+     * 为给定声明签发确定性令牌。
      *
-     * @param claims immutable claims to sign
-     * @return a URL-safe token without Base64 padding
+     * @param claims 待签名的不可变声明
+     * @return 适用于 URL 且不带 Base64 填充的令牌
      */
     String issue(TicketClaims claims);
 
     /**
-     * Validates a token's structure, signature and temporal claims.
+     * 验证令牌的结构、签名和时间声明。
      *
-     * @param token token to validate
-     * @return the authenticated claims
-     * @throws TicketValidationException when validation fails
+     * @param token 待验证的令牌
+     * @return 已通过认证的声明
+     * @throws TicketValidationException 验证失败时抛出
      */
     TicketClaims validate(String token);
 }

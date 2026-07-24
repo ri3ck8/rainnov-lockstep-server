@@ -6,12 +6,11 @@ option java_package = "com.rainnov.lockstep.protocol";
 option java_multiple_files = true;
 option java_outer_classname = "LockstepV1Proto";
 
-// Envelope is the only top-level payload carried by a WebSocket binary frame.
-// protocol_version is currently 1.
+// Envelope 是 WebSocket 二进制帧承载的唯一顶层载荷。
+// protocol_version 当前为 1。
 message Envelope {
   uint32 protocol_version = 1;
-  // Optional application-level correlation id. Unsolicited server messages may
-  // leave this empty.
+  // 可选的应用层关联 ID。服务端主动发送的消息可以将其留空。
   string request_id = 2;
 
   oneof payload {
@@ -26,14 +25,13 @@ message Envelope {
   }
 }
 
-// The first application message sent on every new or reconnecting session.
+// 每个新建或重连会话发送的第一条应用层消息。
 message ClientHello {
   string room_id = 1;
   string match_id = 2;
   string player_id = 3;
   string ticket = 4;
-  // Zero for an initial connection. On reconnect this is the last ServerFrame
-  // the client has fully applied.
+  // 首次连接时为零；重连时为客户端已完整应用的最后一个 ServerFrame。
   uint32 last_applied_frame = 5;
 }
 
@@ -47,11 +45,10 @@ message ServerHello {
   uint32 tick_rate = 7;
   uint32 input_delay_frames = 8;
   uint32 max_lead_frames = 9;
-  // Inclusive replay range that follows this message. Both values are zero
-  // when no replay is required.
+  // 此消息之后的闭区间回放范围；无需回放时两个值均为零。
   uint32 replay_from_frame = 10;
   uint32 replay_to_frame = 11;
-  // Heartbeat/reconnect values are authoritative for this allocation.
+  // 心跳和重连参数以本次分配返回的值为准。
   uint32 client_ping_interval_ms = 12;
   uint32 connection_idle_timeout_ms = 13;
   uint32 reconnect_grace_ms = 14;
@@ -59,33 +56,32 @@ message ServerHello {
 
 message ClientInput {
   uint32 target_frame = 1;
-  // Monotonically increasing per-player sequence number. Sequence zero is
-  // reserved for a server-generated no-op.
+  // 每位玩家单调递增的序列号。序列号零保留给服务端生成的空操作。
   uint32 sequence = 2;
-  // Engine-neutral, opaque game command bytes.
+  // 与引擎无关的不透明游戏指令字节。
   bytes payload = 3;
 }
 
 message PlayerFrameInput {
   string player_id = 1;
   bool no_op = 2;
-  // Zero when no_op is true.
+  // no_op 为 true 时取零。
   uint32 sequence = 3;
-  // Empty when no_op is true.
+  // no_op 为 true 时为空。
   bytes payload = 4;
 }
 
 message ServerFrame {
   uint32 frame_id = 1;
-  // Entries are always in the player order established by room allocation.
+  // 条目始终按照房间分配时确定的玩家顺序排列。
   repeated PlayerFrameInput inputs = 2;
 }
 
 message MatchEvent {
   EventType type = 1;
-  // Empty for events that do not target a specific player.
+  // 事件不针对特定玩家时为空。
   string player_id = 2;
-  // Stable machine-readable reason supplied by the server or control plane.
+  // 由服务端或控制面提供的稳定、机器可读原因。
   string reason = 3;
   uint32 frame_id = 4;
 }
@@ -93,18 +89,17 @@ message MatchEvent {
 message ProtocolError {
   ProtocolErrorCode code = 1;
   string message = 2;
-  // When true, the server closes the connection after sending this message.
+  // 为 true 时，服务端发送此消息后关闭连接。
   bool fatal = 3;
 }
 
-// The client sends this on a fixed schedule after authentication. It is not
-// suppressed by other outbound traffic.
+// 客户端在认证后按固定周期发送此消息，不会因其他出站流量而停止发送。
 message ClientPing {
   uint32 sequence = 1;
 }
 
 message ServerPong {
-  // Echoes the sequence from ClientPing.
+  // 原样返回 ClientPing 中的 sequence。
   uint32 sequence = 1;
 }
 

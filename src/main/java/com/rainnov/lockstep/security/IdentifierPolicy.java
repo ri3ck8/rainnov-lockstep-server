@@ -3,9 +3,9 @@ package com.rainnov.lockstep.security;
 import java.util.Objects;
 
 /**
- * Shared policy for identifiers that cross REST, tickets and the data plane.
- * Values are rejected rather than normalized so signatures and room indexes
- * always refer to exactly the bytes supplied by the trusted caller.
+ * REST、票据和数据面共用的标识符策略。
+ * 对不合规值直接拒绝而不做规范化，确保签名和房间索引始终精确对应
+ * 可信调用方提供的原始字节。
  */
 public final class IdentifierPolicy {
 

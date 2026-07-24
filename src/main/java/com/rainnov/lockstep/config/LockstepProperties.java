@@ -127,8 +127,7 @@ public class LockstepProperties {
     @Getter
     @Setter
     public static class DataPlane {
-        // Port zero is useful for isolated integration tests; production
-        // deployments should configure a stable advertised endpoint.
+        // 端口 0 适用于隔离的集成测试；生产部署应配置稳定的对外服务端点。
         @Min(0)
         @Max(65535)
         private int port = 9000;

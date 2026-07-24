@@ -33,8 +33,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
 /**
- * Decodes the engine-neutral Protobuf protocol and routes authenticated commands
- * to a room. Handler state is confined to the channel event loop.
+ * 解码与引擎无关的 Protobuf 协议，并将已认证的命令路由到房间。
+ * 处理器状态仅限在通道事件循环内访问。
  */
 final class WebSocketDataPlaneHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
@@ -229,7 +229,7 @@ final class WebSocketDataPlaneHandler extends SimpleChannelInboundHandler<WebSoc
                 envelope.getRequestId()
             );
             case CLOSING -> {
-                // Ignore messages while the close frame is being flushed.
+                // 关闭帧正在刷新时忽略后续消息。
             }
         }
     }
@@ -273,9 +273,9 @@ final class WebSocketDataPlaneHandler extends SimpleChannelInboundHandler<WebSoc
                 closeFlushTimeout,
                 telemetry
             );
-        // Publish the connection identity before crossing into the room event loop.
-        // If the channel closes while connect is pending, channelInactive can still
-        // enqueue a matching disconnect behind the connect command.
+        // 在进入房间事件循环前发布连接身份。
+        // 如果通道在连接命令待处理期间关闭，channelInactive 仍可在连接命令之后
+        // 将对应的断开连接命令加入队列。
         session = newSession;
         roomId = hello.getRoomId();
         playerId = hello.getPlayerId();
