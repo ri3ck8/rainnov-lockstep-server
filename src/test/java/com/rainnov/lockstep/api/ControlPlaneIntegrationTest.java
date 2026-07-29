@@ -1,6 +1,7 @@
 package com.rainnov.lockstep.api;
 
 import com.rainnov.lockstep.api.dto.NodeCapacityResponse;
+import com.rainnov.lockstep.api.dto.NodeRoomsResponse;
 import com.rainnov.lockstep.api.dto.PlayerRequest;
 import com.rainnov.lockstep.api.dto.RoomAllocationRequest;
 import com.rainnov.lockstep.api.dto.RoomAllocationResponse;
@@ -103,6 +104,17 @@ class ControlPlaneIntegrationTest {
             .jsonPath("$.message").isEqualTo("A valid X-API-Key header is required")
             .jsonPath("$.requestId").isNotEmpty()
             .jsonPath("$.timestamp").isNotEmpty();
+
+        client.get()
+            .uri("/internal/v1/node/rooms")
+            .header(RequestIdWebFilter.HEADER, "rooms-unauthorized-request")
+            .exchange()
+            .expectStatus().isUnauthorized()
+            .expectHeader()
+            .valueEquals(RequestIdWebFilter.HEADER, "rooms-unauthorized-request")
+            .expectBody()
+            .jsonPath("$.code").isEqualTo("UNAUTHORIZED")
+            .jsonPath("$.requestId").isEqualTo("rooms-unauthorized-request");
 
         client.get()
             .uri("/api/v1/rooms/unknown-room")
@@ -342,6 +354,7 @@ class ControlPlaneIntegrationTest {
         assertThat(capacity).isNotNull();
         assertThat(capacity.nodeId()).isEqualTo("control-plane-test-node");
         assertThat(capacity.nodeStatus().name()).isEqualTo("READY");
+        assertThat(capacity.acceptingAllocations()).isTrue();
         assertThat(capacity.targetRooms()).isEqualTo(1);
         assertThat(capacity.readyRooms()).isEqualTo(1);
         assertThat(capacity.healthyRooms()).isEqualTo(1);
@@ -353,6 +366,77 @@ class ControlPlaneIntegrationTest {
             assertThat(endpoint.encoding()).isEqualTo("PROTOBUF");
         });
         assertThat(capacity.sampledAt()).isNotNull();
+    }
+
+    @Test
+    void listsOnlyLiveRoomSnapshotsWithRequestAndSamplingMetadata() {
+        RoomAllocationResponse allocation = allocate(
+            "room-list-key",
+            request("room-list-match", "player-a", "player-b"),
+            HttpStatus.CREATED
+        );
+
+        NodeRoomsResponse activeRooms = client.get()
+            .uri("/internal/v1/node/rooms")
+            .header(ApiKeyWebFilter.HEADER, API_KEY)
+            .header(RequestIdWebFilter.HEADER, "room-list-request")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().valueEquals(RequestIdWebFilter.HEADER, "room-list-request")
+            .expectBody(NodeRoomsResponse.class)
+            .returnResult()
+            .getResponseBody();
+
+        assertThat(activeRooms).isNotNull();
+        assertThat(activeRooms.nodeId()).isEqualTo("control-plane-test-node");
+        assertThat(activeRooms.total()).isEqualTo(activeRooms.items().size());
+        assertThat(activeRooms.sampledAt()).isNotNull();
+        assertThat(activeRooms.items()).singleElement().satisfies(room -> {
+            assertThat(room.roomId()).isEqualTo(allocation.roomId());
+            assertThat(room.matchId()).isEqualTo("room-list-match");
+            assertThat(room.state()).isEqualTo(RoomState.ACTIVE);
+            assertThat(room.players()).extracting(player -> player.playerId())
+                .containsExactly("player-a", "player-b");
+        });
+
+        terminate(
+            allocation.roomId(),
+            new RoomTerminationRequest(
+                "room-list-match",
+                TerminationMode.FORCE,
+                TerminationReason.ADMINISTRATIVE
+            )
+        );
+
+        NodeRoomsResponse immediatelyAfterTermination = client.get()
+            .uri("/internal/v1/node/rooms")
+            .header(ApiKeyWebFilter.HEADER, API_KEY)
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(NodeRoomsResponse.class)
+            .returnResult()
+            .getResponseBody();
+
+        assertThat(immediatelyAfterTermination).isNotNull();
+        assertThat(immediatelyAfterTermination.items())
+            .noneMatch(room -> room.state() == RoomState.TERMINATED);
+
+        awaitReadyRoom();
+
+        NodeRoomsResponse replacementRooms = client.get()
+            .uri("/internal/v1/node/rooms")
+            .header(ApiKeyWebFilter.HEADER, API_KEY)
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(NodeRoomsResponse.class)
+            .returnResult()
+            .getResponseBody();
+
+        assertThat(replacementRooms).isNotNull();
+        assertThat(replacementRooms.total()).isEqualTo(replacementRooms.items().size());
+        assertThat(replacementRooms.items())
+            .noneMatch(room -> room.roomId().equals(allocation.roomId()))
+            .noneMatch(room -> room.state() == RoomState.TERMINATED);
     }
 
     private RoomAllocationResponse allocate(

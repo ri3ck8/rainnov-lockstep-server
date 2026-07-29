@@ -9,6 +9,7 @@ public record NodeCapacityResponse(
     String nodeId,
     NodeState nodeStatus,
     List<DataPlaneEndpointResponse> dataPlaneEndpoints,
+    boolean acceptingAllocations,
     int targetRooms,
     int initializingRooms,
     int readyRooms,

@@ -110,6 +110,52 @@ Content-Type: application/json
 GET /internal/v1/node/capacity
 ```
 
-返回稳定的 `nodeId`、`nodeStatus`、数据面端点、目标容量，以及 `initializingRooms`、`readyRooms`、`activatingRooms`、`activeRooms`、`failedRooms`、`terminatingRooms`、`healthyRooms` 和 `totalLiveRooms`。
+返回稳定的 `nodeId`、`nodeStatus`、数据面端点、`acceptingAllocations`、目标容量，以及 `initializingRooms`、`readyRooms`、`activatingRooms`、`activeRooms`、`failedRooms`、`terminatingRooms`、`healthyRooms`、`totalLiveRooms` 和 `sampledAt`。调用方必须直接使用 `acceptingAllocations` 判断节点当前是否接受申请，不应根据 `nodeStatus` 或房间计数推断。
 
 未来 Proxy 可以短时缓存该快照，但它不是分配承诺；实际申请返回 503 时必须改选其他节点。节点只保证本节点内的 `matchId` 和幂等键唯一。
+
+## 节点存活房间列表
+
+```http
+GET /internal/v1/node/rooms
+```
+
+返回当前节点的全部未终止房间快照，不分页，也不包含已进入终态快照保留区的房间：
+
+```json
+{
+  "nodeId": "node-sg-1",
+  "items": [
+    {
+      "nodeId": "node-sg-1",
+      "roomId": "room-...",
+      "allocationId": "alloc-...",
+      "matchId": "match-10001",
+      "state": "ACTIVE",
+      "matchPhase": "WAITING_FOR_PLAYERS",
+      "currentFrame": 0,
+      "players": [
+        {
+          "playerId": "player-a",
+          "state": "RESERVED",
+          "sessionId": null,
+          "lastInputFrame": 0,
+          "lastSequence": 0
+        }
+      ],
+      "createdAt": "2026-07-24T10:00:00Z",
+      "activatedAt": "2026-07-24T10:00:01Z",
+      "startedAt": null,
+      "joinDeadline": "2026-07-24T10:01:01Z",
+      "terminatedAt": null,
+      "terminationMode": null,
+      "terminationReason": null,
+      "lastTickLagNanos": 0
+    }
+  ],
+  "total": 1,
+  "sampledAt": "2026-07-24T10:00:02Z"
+}
+```
+
+`total` 始终等于 `items` 的元素数量。列表使用与单房间查询相同、且不含连接票据的 `RoomSnapshot` 结构；需要查询已终止房间时继续使用 `GET /api/v1/rooms/{roomId}`。

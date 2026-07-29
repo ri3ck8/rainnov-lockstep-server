@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class LockStepApplication {
+public class LockStepServerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(LockStepApplication.class, args);
+        SpringApplication.run(LockStepServerApplication.class, args);
     }
 
 }

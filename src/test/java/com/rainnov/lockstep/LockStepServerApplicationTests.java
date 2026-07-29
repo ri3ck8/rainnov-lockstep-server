@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
     "lockstep.security.api-key=context-test-api-key",
     "lockstep.security.ticket-secret=context-test-ticket-secret"
 })
-class LockStepApplicationTests {
+class LockStepServerApplicationTests {
 
     @Test
     void contextLoads() {
