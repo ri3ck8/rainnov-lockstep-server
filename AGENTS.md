@@ -11,6 +11,10 @@
 - [房间生命周期](docs/room-lifecycle.md)
 - [连接路由与线程模型](docs/threading-model.md)
 
+## 设计方案
+
+- [服务端影子校验方案](docs/shadow-verification.md)（尚未实现）
+
 ## 测试工具
 
 - [帧同步测试客户端](docs/test-client.md)
