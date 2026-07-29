@@ -8,6 +8,8 @@
 
 - [控制面接口](docs/control-plane.md)
 - [数据面协议](docs/protocol.md)
+- [房间生命周期](docs/room-lifecycle.md)
+- [连接路由与线程模型](docs/threading-model.md)
 
 ## 测试工具
 

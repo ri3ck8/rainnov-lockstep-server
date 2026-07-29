@@ -47,17 +47,16 @@ LOCKSTEP_DATA_PORT
 
 默认池中有 16 个一次性逻辑房间。这个数字代表所有未终止房间的总数，而不是空闲房间目标数，因此分配一局不会立即扩容，单节点最多并发 16 局。房间完成 `TERMINATED` 后，运行对象、连接和帧历史被销毁；协调器随后创建具有全新 `roomId` 的 `READY` 房间补位。
 
-```text
-INITIALIZING → READY → ACTIVATING → ACTIVE → TERMINATING → TERMINATED
-                                      └────→ FAILED ──────┘
-```
-
 每个房间固定绑定一个 Netty `EventExecutor`。REST 线程和网络线程只提交命令，房间状态、玩家连接、输入聚合及 tick 都在该执行器上串行更新。节点关闭时先进入 `DRAINING` 并拒绝新分配，最多等待活动对局 30 秒，然后强制结束；排空期间不会补池。
+
+房间状态机、分配与激活、输入准入、终止原因、补位与排空的完整规则见 [房间生命周期](docs/room-lifecycle.md)；节点内的线程划分见 [连接路由与线程模型](docs/threading-model.md)。
 
 ## 接口与协议
 
 - [控制面接口](docs/control-plane.md)
 - [数据面协议、心跳、重连和兼容规则](docs/protocol.md)
+- [房间生命周期、容量与补位](docs/room-lifecycle.md)
+- [连接路由与线程模型](docs/threading-model.md)
 - [Protobuf 模式定义](src/main/proto/lockstep_v1.proto)
 
 客户端认证后应严格每 5 秒发送一次 `ClientPing`，无论期间是否发送了输入。服务端仅以相同 `sequence` 的 `ServerPong` 响应，不主动发起应用层 Ping。任一已认证、结构有效的客户端消息都会刷新活动时间；15 秒没有此类消息时连接被关闭，随后进入独立的 30 秒重连宽限。
